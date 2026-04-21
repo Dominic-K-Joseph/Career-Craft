@@ -46,7 +46,6 @@
 
 <body>
     {{-- Navbar --}}
-    {{-- Navbar --}}
     <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
         <div class="container">
             {{-- Logo --}}
@@ -56,16 +55,16 @@
             </a>
 
             {{-- Right Side --}}
-           <div class="ms-auto d-flex align-items-center gap-2">
-    <a href="{{ route('login') }}"
-        class="btn {{ request()->routeIs('login') ? 'btn-primary disabled' : 'btn-outline-primary' }} text-decoration-none fw-semibold">
-        Sign In
-    </a>
-    <a href="{{ route('register.form') }}"
-        class="btn {{ request()->routeIs('register') ? 'btn-primary disabled' : 'btn-outline-primary' }} text-decoration-none fw-semibold">
-        Sign Up
-    </a>
-</div>
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <a href="{{ route('login') }}"
+                    class="btn {{ request()->routeIs('login') ? 'btn-primary disabled' : 'btn-outline-primary' }} text-decoration-none fw-semibold">
+                    Sign In
+                </a>
+                <a href="{{ route('register.form') }}"
+                    class="btn {{ request()->routeIs('register') ? 'btn-primary disabled' : 'btn-outline-primary' }} text-decoration-none fw-semibold">
+                    Sign Up
+                </a>
+            </div>
 
         </div>
     </nav>

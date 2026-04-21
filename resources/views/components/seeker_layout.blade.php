@@ -21,7 +21,7 @@
     {{-- Include Bootstrap Icons --}}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    
+
 
     <style>
         .profile-img {
@@ -66,6 +66,16 @@
             /* Tailwind $blue-800 hex */
             border-color: #1e40af !important;
             color: #fff !important;
+        }
+
+        .swal2-container.swal2-top-end {
+            top: 80px !important;
+        }
+
+        .swal2-popup.swal2-toast {
+            border-radius: 10px;
+            padding: 10px 15px;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -119,16 +129,16 @@
                     </a>
                 </li>
 
-                  {{-- Notifications --}}
+                {{-- Notifications --}}
                 <li class="nav-item">
-    <a class="nav-link" href="{{ route('seeker.payment.page') }}">
-        
-        
-                <i class="fas fa-crown" style="color: gold;"></i>
-            </span>
-        </span>
-    </a>
-</li>
+                    <a class="nav-link" href="{{ route('seeker.payment.page') }}">
+
+
+                        <i class="fas fa-crown" style="color: gold;"></i>
+                        </span>
+                        </span>
+                    </a>
+                </li>
 
                 {{-- Profile Dropdown --}}
                 <li class="nav-item dropdown">
@@ -143,9 +153,9 @@
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
                         <li><a class="dropdown-item" href="{{ route('seeker.profile') }}">Profile</a></li>
                         <li><a class="dropdown-item" href="#">Applications</a></li>
-                        <li>  <a class="nav-link" href="{{ route('seeker.payment.page') }}" >
-        <i class="fas fa-crown" style="color: gold;"></i> Premium       
-    </a></li>
+                        <li> <a class="nav-link" href="{{ route('seeker.payment.page') }}">
+                                <i class="fas fa-crown" style="color: gold;"></i> Premium
+                            </a></li>
                         <li>
                             <hr class="dropdown-divider">
                         </li>

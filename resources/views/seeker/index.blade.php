@@ -1,4 +1,9 @@
 <x-seeker_layout>
+    @php
+        $userName =
+            DB::table('tbl_seeker_profile')->where('login_id', session('login_id'))->value('seeker_name') ?? 'User';
+    @endphp
+
     {{-- Search Section --}}
     <div class="mb-4">
         <form action="#" method="GET" class="d-flex justify-content-center flex-wrap gap-3">
@@ -69,7 +74,7 @@
     <div class="mt-5">
         <h4 class="fw-bold mb-3">Recommended Jobs for You</h4>
         <div class="row g-3">
-              <div class="col-md-6">
+            <div class="col-md-6">
                 <div class="col-md-6">
                     <div class="card shadow-sm border-0 position-relative">
                         <div class="card-body">
@@ -88,7 +93,7 @@
                     </div>
                 </div>
             </div>
-              <div class="col-md-6">
+            <div class="col-md-6">
                 <div class="col-md-6">
                     <div class="card shadow-sm border-0 position-relative">
                         <div class="card-body">
@@ -109,4 +114,44 @@
             </div>
         </div>
     </div>
+    @push('scripts')
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+            //This waits until the HTML page is fully loaded before running the code.
+            //Prevents errors if elements aren’t ready yet.
+
+                // Check if already shown in this session
+                if (sessionStorage.getItem("greetingShown")) {
+                    return; // Don't show again
+                }
+
+                // ✅ Mark as shown
+                sessionStorage.setItem("greetingShown", "true");
+
+                let hour = new Date().getHours();//Gets current time (0–23 format).
+
+                let greeting = "";
+                if (hour < 12) {
+                    greeting = "Good Morning ☀️";
+                } else if (hour < 17) {
+                    greeting = "Good Afternoon 🌤️";
+                } else {
+                    greeting = "Good Evening 🌙";
+                }
+
+                const Toast = Swal.mixin({//mixin() creates a reusable toast configuration.
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 5000,
+                    timerProgressBar: true
+                });
+
+                Toast.fire({
+                    title: greeting + ", {{ $userName ?? 'User' }}!"
+                });
+
+            });
+        </script>
+    @endpush
 </x-seeker_layout>

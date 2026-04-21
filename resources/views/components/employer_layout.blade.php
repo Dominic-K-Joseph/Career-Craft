@@ -12,7 +12,6 @@
     }
 @endphp
 
-
 <head>
     <meta charset="UTF-8">
     <title>Employer Dashboard</title>
