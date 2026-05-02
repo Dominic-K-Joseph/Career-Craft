@@ -184,7 +184,7 @@
 
             if (file) {
                 const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-                const maxSize = 2 * 1024 * 1024; // 2MB
+                const maxSize = 2 * 1024 * 1024;
 
                 if (!validTypes.includes(file.type)) {
                     photoError.textContent = 'Please select a valid image (JPG, JPEG, or PNG).';
@@ -211,16 +211,18 @@
         const skillInput = document.getElementById('skillInput');
         const skillList = document.getElementById('skillList');
 
-        // Hidden input to store all skills before form submit
         let skills = [];
 
-        // Load existing skills from DB (text only, ignoring duplicates)
+        // Load existing skills from DB on page load
         document.querySelectorAll('.remove-skill-db').forEach(el => {
             const skillText = el.parentElement.childNodes[0].textContent.trim();
             if (!skills.map(s => s.toLowerCase()).includes(skillText.toLowerCase())) {
                 skills.push(skillText);
             }
         });
+
+        // ✅ Call renderSkills() on page load so hidden input is always present
+        renderSkills();
 
         // Add new skill
         addSkillBtn.addEventListener('click', () => {
@@ -269,6 +271,7 @@
                                 const skillText = e.target.parentElement.childNodes[0].textContent.trim();
                                 e.target.parentElement.remove();
                                 skills = skills.filter(s => s.toLowerCase() !== skillText.toLowerCase());
+                                renderSkills(); // ✅ update hidden input after DB skill removed
                             } else {
                                 alert('Failed to deactivate skill.');
                             }
@@ -278,12 +281,10 @@
             }
         });
 
-        // Render new skills without duplicating old ones
         function renderSkills() {
             // Remove only newly added badges
             document.querySelectorAll('.new-skill').forEach(el => el.remove());
 
-            // Add all new (non-DB) skills cleanly
             const existingDBSkills = Array.from(document.querySelectorAll('.remove-skill-db'))
                 .map(el => el.parentElement.childNodes[0].textContent.trim().toLowerCase());
 
@@ -293,14 +294,14 @@
                     badge.className = 'badge rounded-pill text-white me-1 mb-1 new-skill';
                     badge.style.backgroundColor = '#1e40af';
                     badge.innerHTML = `
-                ${skill}
-                <button type="button" class="btn-close btn-close-white btn-sm ms-1 remove-skill" aria-label="Remove"></button>
-            `;
+                    ${skill}
+                    <button type="button" class="btn-close btn-close-white btn-sm ms-1 remove-skill" aria-label="Remove"></button>
+                `;
                     skillList.appendChild(badge);
                 }
             });
 
-            // Update hidden input dynamically (for backend JSON)
+            // ✅ Always ensure hidden input exists and is up to date
             let hidden = document.getElementById('skillsHidden');
             if (!hidden) {
                 hidden = document.createElement('input');
@@ -312,18 +313,25 @@
             hidden.value = JSON.stringify(skills);
         }
 
-
-        document.getElementById('seeker_resume').addEventListener('change', function(e) {
+        // Resume file name display
+        document.getElementById('seeker_resume').addEventListener('change', function() {
             if (this.files.length > 0) {
-                const fileName = this.files[0].name;
-                const next = document.createElement('small');
-                next.className = 'text-primary d-block mt-1';
-                next.textContent = `Selected: ${fileName}`;
-                this.insertAdjacentElement('afterend', next);
+                let existing = document.getElementById('resumeSelected');
+                if (!existing) {
+                    existing = document.createElement('small');
+                    existing.id = 'resumeSelected';
+                    existing.className = 'text-primary d-block mt-1';
+                    this.insertAdjacentElement('afterend', existing);
+                }
+                existing.textContent = `Selected: ${this.files[0].name}`;
             }
         });
-    </script>
 
+        // ✅ Wire up the Upload Resume button
+        document.getElementById('uploadResumeBtn').addEventListener('click', function() {
+            document.getElementById('seeker_resume').click();
+        });
+    </script>
 
 
 </x-seeker_layout>
