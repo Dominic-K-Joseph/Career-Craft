@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Job;
+use App\Models\UserActivityLog;
 
 class JobController extends Controller
 {
@@ -16,17 +17,15 @@ class JobController extends Controller
     {
         $query = Job::query()->where('status', 1);
 
-        // ✅ Apply search filter if present
         if ($request->filled('search')) {
             $query->where('job_name', 'like', '%' . $request->search . '%');
         }
 
-        // ✅ Filter by job type if selected
         if ($request->filled('job_filter')) {
             $query->where('job_type', $request->job_filter);
         }
-        $job_types = ['Full-Time', 'Part-Time', 'Internship', 'Contract'];
 
+        $job_types = ['Full-Time', 'Part-Time', 'Internship', 'Contract'];
         $jobs = $query->latest()->paginate(10);
 
         return view('employer.job', compact('jobs', 'job_types'));
@@ -47,18 +46,14 @@ class JobController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'job_name' => 'required|string|max:255|regex:/^[a-zA-Z0-9\s]+$/',
-            'job_salary' => [
-                'required',
-                'regex:/^₹?\s*\d+\s*-\s*₹?\s*\d+$/'
-            ],
-            'job_location' => 'required|string|max:255',
-            'job_type' => 'required|string|max:255',
-            'job_expirience' => 'required|string|max:255',
+            'job_name'        => 'required|string|max:255|regex:/^[a-zA-Z0-9\s]+$/',
+            'job_salary'      => ['required', 'regex:/^₹?\s*\d+\s*-\s*₹?\s*\d+$/'],
+            'job_location'    => 'required|string|max:255',
+            'job_type'        => 'required|string|max:255',
+            'job_expirience'  => 'required|string|max:255',
             'job_description' => 'required|string|max:1000',
         ]);
 
-        // ✅ Always get company ID from the logged-in employer
         $companyId = DB::table('tbl_company')
             ->where('login_id', session('login_id'))
             ->value('id');
@@ -67,19 +62,20 @@ class JobController extends Controller
             return back()->with('error', 'Company profile not found. Please complete your company registration.');
         }
 
-        Job::create([
-            'company_id' => $companyId,
-            'job_name' => $request->job_name,
-            'job_salary' => $request->job_salary,
-            'job_location' => $request->job_location,
-            'job_type' => $request->job_type,
-            'job_expirience' => $request->job_expirience,
+        $job = Job::create([
+            'company_id'      => $companyId,
+            'job_name'        => $request->job_name,
+            'job_salary'      => $request->job_salary,
+            'job_location'    => $request->job_location,
+            'job_type'        => $request->job_type,
+            'job_expirience'  => $request->job_expirience,
             'job_description' => $request->job_description,
         ]);
 
+        $this->logActivity('job_created', "Created job: {$job->job_name} (ID: {$job->id})");
+
         return redirect()->route('employer.jobs.create')->with('success', 'Job added successfully!');
     }
-
 
     /**
      * Display the specified resource.
@@ -87,7 +83,7 @@ class JobController extends Controller
     public function show(string $id)
     {
         $job = Job::findOrFail($id);
-        return view('employer.view_job', compact('job')); 
+        return view('employer.view_job', compact('job'));
     }
 
     /**
@@ -108,22 +104,24 @@ class JobController extends Controller
         $job = Job::findOrFail($id);
 
         $request->validate([
-            'job_name' => 'required|string|max:255|regex:/^[a-zA-Z0-9\s]+$/',
-            'job_salary' => ['required', 'regex:/^₹?\s*\d+\s*-\s*₹?\s*\d+$/'],
-            'job_location' => 'required|string|max:255',
-            'job_type' => 'required|string|max:255',
-            'job_expirience' => 'required|string|max:255',
+            'job_name'        => 'required|string|max:255|regex:/^[a-zA-Z0-9\s]+$/',
+            'job_salary'      => ['required', 'regex:/^₹?\s*\d+\s*-\s*₹?\s*\d+$/'],
+            'job_location'    => 'required|string|max:255',
+            'job_type'        => 'required|string|max:255',
+            'job_expirience'  => 'required|string|max:255',
             'job_description' => 'required|string|max:1000',
         ]);
 
         $job->update([
-            'job_name' => $request->job_name,
-            'job_salary' => $request->job_salary,
-            'job_location' => $request->job_location,
-            'job_type' => $request->job_type,
-            'job_expirience' => $request->job_expirience,
+            'job_name'        => $request->job_name,
+            'job_salary'      => $request->job_salary,
+            'job_location'    => $request->job_location,
+            'job_type'        => $request->job_type,
+            'job_expirience'  => $request->job_expirience,
             'job_description' => $request->job_description,
         ]);
+
+        $this->logActivity('job_updated', "Updated job: {$job->job_name} (ID: {$job->id})");
 
         return redirect()->route('employer.jobs.edit', $job->id)
             ->with('success', 'Job updated successfully!');
@@ -136,10 +134,31 @@ class JobController extends Controller
     {
         $job = Job::findOrFail($id);
 
-        $job->update([
-            'status' => 0,
-        ]);
+        $job->update(['status' => 0]);
+
+        $this->logActivity('job_deleted', "Deleted job: {$job->job_name} (ID: {$job->id})");
 
         return redirect()->route('employer.jobs.index')->with('success', 'Job deleted successfully');
+    }
+
+    /**
+     * Log employer activity to UserActivityLog.
+     */
+    private function logActivity(string $action, string $description = '')
+    {
+        $loginId = session('login_id');
+
+        // Fetch employer's login record for name/role
+        $user = DB::table('tbl_login')->where('id', $loginId)->first();
+
+        if (!$user) return;
+
+        UserActivityLog::create([
+            'user_id'     => $loginId,
+            'name'        => $user->username,
+            'role'        => $user->role,
+            'action'      => $action,
+            'description' => $description, // remove this if your table has no description column
+        ]);
     }
 }

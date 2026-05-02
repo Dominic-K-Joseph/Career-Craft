@@ -154,8 +154,7 @@ class JobController extends Controller
                 'seeker_resume' => 'nullable|file|mimes:pdf|max:2048',
             ], [
                 'seeker_name.required' => 'Please enter your full name.',
-                'seeker_name.required' => 'Name must not contain special characters.',
-
+                'seeker_name.regex' => 'Name can only contain letters, numbers, and spaces.',
                 'seeker_email.required' => 'Please enter your email address.',
                 'seeker_email.email' => 'Your email format is invalid.',
                 'seeker_email.regex' => 'Email format is required.',

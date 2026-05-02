@@ -15,19 +15,18 @@ use App\Models\Company;
 use App\Models\SeekerProfile;
 use App\Mail\SeekerRegistered;
 use App\Mail\EmployerRegistered;
+use App\Models\UserActivityLog;
 
 class AuthController extends Controller
 {
     public function checkLogin()
     {
-        // ✅ Auto-login if session is missing but cookie exists
         if (!Session::has('login_id') && Cookie::has('remember_login')) {
             $user = Login::find(Cookie::get('remember_login'));
             if ($user) {
                 Session::put('login_id', $user->id);
                 Session::put('role', $user->role);
 
-                // Redirect based on role
                 switch (strtolower($user->role)) {
                     case 'admin':
                         return redirect()->route('admin.dashboard');
@@ -39,49 +38,42 @@ class AuthController extends Controller
             }
         }
 
-        // If no users exist, redirect to register
         $hasUsers = Login::exists();
         if (!$hasUsers) {
             return redirect()->route('register.form');
         }
 
-        // Otherwise, show login form
         return view('login');
     }
 
-
     public function login(Request $request)
     {
-        // Validate input
         $request->validate([
             'username' => 'required|string',
             'password' => 'required|string',
         ]);
 
-        // Find user
         $user = Login::where('username', $request->username)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return back()->with('error', 'Invalid username or password');
         }
 
-        // Check status
         if ($user->status == 0) {
             return back()->with('error', 'Your account is inactive. Please contact admin.');
         }
 
-        // Store session
         Session::put('login_id', $user->id);
         Session::put('role', $user->role);
 
-        // ✅ Handle "Remember Me"
         if ($request->has('remember')) {
-            Cookie::queue('remember_login', $user->id, 60 * 24 * 7); // 7 days
+            Cookie::queue('remember_login', $user->id, 60 * 24 * 7);
         } else {
             Cookie::queue(Cookie::forget('remember_login'));
         }
 
-        // Redirect based on role
+        $this->logActivity($user, 'login');
+
         switch (strtolower($user->role)) {
             case 'admin':
                 return redirect()->route('admin.index');
@@ -102,18 +94,16 @@ class AuthController extends Controller
     public function resetPassword(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'email'    => 'required|email',
             'password' => 'required|min:6|confirmed',
         ]);
 
-        // tbl_login has username (not email)
         $user = Login::where('username', $request->email)->first();
 
         if (!$user) {
             return back()->with('error', 'Email not found in system!');
         }
 
-        // ✅ Update password
         $user->password = Hash::make($request->password);
         $user->save();
 
@@ -122,62 +112,52 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        // Clear session
         Session::forget('login_id');
         Session::forget('role');
-
-        // Forget the "remember me" cookie
         Cookie::queue(Cookie::forget('remember_login'));
 
-        // Redirect to login page
         return redirect()->route('login')->with('success', 'Logged out successfully!');
     }
 
     public function register(Request $request)
     {
-        // dd($request->all()); // 👈 Add this first
         $role = $request->input('role');
 
-        // ✅ Validation rules
         $request->validate([
             'role' => 'required|in:seeker,employer',
 
-            // Seeker fields
-            'seeker_name'     => 'required_if:role,seeker|string|max:255',
-            'seeker_email'    => 'required_if:role,seeker|email|unique:tbl_login,username',
-            'seeker_password' => 'required_if:role,seeker|min:6',
-            'seeker_phone'    => 'nullable|string|max:20',
-            'seeker_address'  => 'nullable|string',
-            'seeker_education' => 'nullable|string',
-            'seeker_location' => 'nullable|string',
-            // 'seeker_skills'   => 'nullable|string',
+            'seeker_name'       => 'required_if:role,seeker|string|max:255',
+            'seeker_email'      => 'required_if:role,seeker|email|unique:tbl_login,username',
+            'seeker_password'   => 'required_if:role,seeker|min:6',
+            'seeker_phone'      => 'nullable|string|max:20',
+            'seeker_address'    => 'nullable|string',
+            'seeker_education'  => 'nullable|string',
+            'seeker_location'   => 'nullable|string',
             'seeker_experience' => 'nullable|string',
-            'seeker_photo'    => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-            'seeker_resume'   => 'nullable|mimes:pdf|max:5120',
+            'seeker_photo'      => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'seeker_resume'     => 'nullable|mimes:pdf|max:5120',
 
-            // Company fields
-            'company_title'   => 'required_if:role,employer|string|max:255',
-            'company_email'   => 'required_if:role,employer|email|unique:tbl_login,username',
+            'company_title'    => 'required_if:role,employer|string|max:255',
+            'company_email'    => 'required_if:role,employer|email|unique:tbl_login,username',
             'company_password' => 'required_if:role,employer|min:6',
-            'company_phone'   => 'nullable|string|max:20',
+            'company_phone'    => 'nullable|string|max:20',
             'company_location' => 'nullable|string|max:255',
-            'company_year'    => 'nullable|string|max:10',
-            'company_details' => 'nullable|string',
-            'company_logo'    => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'company_year'     => 'nullable|string|max:10',
+            'company_details'  => 'nullable|string',
+            'company_logo'     => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
         DB::beginTransaction();
         try {
+            $login = null; // ✅ Initialize so it's always defined
+
             if ($role === 'seeker') {
-                $login = Login::create([ //Inserts a record and returns a Login model
+                $login = Login::create([
                     'username' => $request->seeker_email,
                     'password' => Hash::make($request->seeker_password),
                     'role'     => 'seeker',
                     'status'   => 1,
                 ]);
-
-                // dd($login);
-
 
                 $photoPath = $request->hasFile('seeker_photo')
                     ? $request->file('seeker_photo')->store('seeker_photos', 'public')
@@ -196,8 +176,7 @@ class AuthController extends Controller
                     'seeker_address'   => $request->seeker_address,
                     'seeker_education' => $request->seeker_education,
                     'seeker_location'  => $request->seeker_location,
-                    // 'seeker_skills'    => $request->seeker_skills,
-                    'seeker_experience' => $request->seeker_experience,
+                    'seeker_experience'=> $request->seeker_experience,
                     'seeker_resume'    => $resumePath,
                     'status'           => 1,
                 ]);
@@ -218,15 +197,15 @@ class AuthController extends Controller
                     : null;
 
                 Company::create([
-                    'login_id'        => $login->id,
-                    'company_title'   => $request->company_title,
-                    'company_logo'    => $logoPath,
-                    'company_email'   => $request->company_email,
-                    'company_phone'   => $request->company_phone,
+                    'login_id'         => $login->id,
+                    'company_title'    => $request->company_title,
+                    'company_logo'     => $logoPath,
+                    'company_email'    => $request->company_email,
+                    'company_phone'    => $request->company_phone,
                     'company_location' => $request->company_location,
-                    'company_year'    => $request->company_year,
-                    'company_details' => $request->company_details,
-                    'status'          => 1,
+                    'company_year'     => $request->company_year,
+                    'company_details'  => $request->company_details,
+                    'status'           => 1,
                 ]);
 
                 Mail::to($request->company_email)->send(new EmployerRegistered($request->company_title));
@@ -234,14 +213,27 @@ class AuthController extends Controller
 
             DB::commit();
 
-            // ✅ Redirect back with success message
+            // ✅ Use $login (not $user), and pass username as name since Login has no name field
+            if ($login) {
+                $this->logActivity($login, 'register');
+            }
+
             return redirect()->route('login')->with('success', 'Registration successful!');
+
         } catch (\Exception $e) {
             DB::rollBack();
-            // dd($e->getMessage());
-
-            // ❌ Redirect back with error
             return redirect()->back()->with('error', 'Registration failed: ' . $e->getMessage())->withInput();
         }
+    }
+
+    private function logActivity($user, $action)
+    {
+        UserActivityLog::create([
+            'user_id' => $user->id,
+            // ✅ Login model has no 'name' — use 'username' instead
+            'name'    => $user->username,
+            'role'    => $user->role,
+            'action'  => $action,
+        ]);
     }
 }
