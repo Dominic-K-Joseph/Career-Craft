@@ -35,7 +35,7 @@
 
     {{-- Welcome Section --}}
     <div class="text-center mb-5">
-        <h2 class="fw-bold">Welcome back, {{ auth()->user()->name ?? 'Job Seeker' }} 👋</h2>
+        <h2 class="fw-bold">Welcome back, {{ auth()->user()->name ?? 'Job Seeker' }}</h2>
         <p class="text-muted">Here’s a quick overview of your activity.</p>
     </div>
 
@@ -114,11 +114,68 @@
             </div>
         </div>
     </div>
+
+    {{-- Chatbot Floating Button --}}
+    <div id="chatbotToggle">
+        <i class="bi bi-chat-dots-fill"></i>
+    </div>
+
+    {{-- Chatbot Box --}}
+    <div id="chatbotBox">
+        <div class="chat-header">
+
+            <div class="d-flex align-items-center">
+
+                <div class="robot-circle me-2">
+                    <i class="bi bi-robot"></i>
+                </div>
+
+                <div>
+                    <strong>Portal Assistant</strong>
+                    <div class="small text-light">Online</div>
+                </div>
+
+            </div>
+
+            <div class="chat-actions">
+
+                <button id="clearChat" class="clear-chat-btn">
+                    <i class="bi bi-trash3"></i>
+                </button>
+
+                <button id="closeChat" class="close-chat-btn">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+
+            </div>
+
+        </div>
+
+        <div class="chat-messages" id="messages">
+
+            <div class="bot-message">
+                Hello 👋 <br>
+                How can I help you today?
+            </div>
+
+        </div>
+
+        <div class="chat-input">
+
+            <input type="text" id="message" placeholder="Type your message...">
+
+            <button id="sendBtn">
+                <i class="bi bi-send-fill"></i>
+            </button>
+
+        </div>
+
+    </div>
     @push('scripts')
         <script>
             document.addEventListener("DOMContentLoaded", function() {
-            //This waits until the HTML page is fully loaded before running the code.
-            //Prevents errors if elements aren’t ready yet.
+                //This waits until the HTML page is fully loaded before running the code.
+                //Prevents errors if elements aren’t ready yet.
 
                 // Check if already shown in this session
                 if (sessionStorage.getItem("greetingShown")) {
@@ -128,18 +185,18 @@
                 // ✅ Mark as shown
                 sessionStorage.setItem("greetingShown", "true");
 
-                let hour = new Date().getHours();//Gets current time (0–23 format).
+                let hour = new Date().getHours(); //Gets current time (0–23 format).
 
                 let greeting = "";
                 if (hour < 12) {
-                    greeting = "Good Morning ☀️";
+                    greeting = "Good Morning";
                 } else if (hour < 17) {
-                    greeting = "Good Afternoon 🌤️";
+                    greeting = "Good Afternoon";
                 } else {
-                    greeting = "Good Evening 🌙";
+                    greeting = "Good Evening";
                 }
 
-                const Toast = Swal.mixin({//mixin() creates a reusable toast configuration.
+                const Toast = Swal.mixin({ //mixin() creates a reusable toast configuration.
                     toast: true,
                     position: 'top-end',
                     showConfirmButton: false,
@@ -150,6 +207,181 @@
                 Toast.fire({
                     title: greeting + ", {{ $userName ?? 'User' }}!"
                 });
+
+            });
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Load Saved Chats
+            |--------------------------------------------------------------------------
+            */
+
+            let savedChats = localStorage.getItem('careerCraftChats');
+
+            if (savedChats) {
+
+                $('#messages').html(savedChats);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Save Chats Function
+            |--------------------------------------------------------------------------
+            */
+
+            function saveChats() {
+
+                localStorage.setItem(
+                    'careerCraftChats',
+                    $('#messages').html()
+                );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Open Chatbot
+            |--------------------------------------------------------------------------
+            */
+
+            $('#chatbotToggle').click(function() {
+
+                if ($('#chatbotBox').is(':visible')) {
+
+                    $('#chatbotBox').hide();
+
+                } else {
+
+                    $('#chatbotBox').css('display', 'flex');
+                }
+
+            });
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Close Chatbot
+            |--------------------------------------------------------------------------
+            */
+
+            $(document).on('click', '#closeChat', function() {
+
+                $('#chatbotBox').hide();
+
+            });
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Send Message
+            |--------------------------------------------------------------------------
+            */
+
+            $('#sendBtn').click(function() {
+
+                let message = $('#message').val();
+
+                if (message.trim() == '') return;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Append User Message
+                |--------------------------------------------------------------------------
+                */
+
+                $('#messages').append(`
+                    <div class="user-message">
+                        ${message}
+                    </div>
+                `);
+
+                saveChats();
+
+                $('#message').val('');
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | AJAX Request
+                |--------------------------------------------------------------------------
+                */
+
+                $.ajax({
+
+                    url: "{{ route('seeker.chatbot.send') }}",
+
+                    type: 'POST',
+
+                    data: {
+                        _token: $('meta[name="csrf-token"]').attr('content'),
+                        message: message
+                    },
+
+                    success: function(response) {
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Append Bot Message
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $('#messages').append(`
+                    <div class="bot-message">
+                        ${response.reply}
+                    </div>
+                `);
+
+                        saveChats();
+
+                        $('#messages').scrollTop(
+                            $('#messages')[0].scrollHeight
+                        );
+                    },
+
+                    error: function(xhr) {
+
+                        console.log(xhr.responseText);
+                    }
+
+                });
+
+            });
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Send Message On Enter
+            |--------------------------------------------------------------------------
+            */
+
+            $('#message').keypress(function(e) {
+
+                if (e.which == 13) {
+
+                    $('#sendBtn').click();
+                }
+
+            });
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Clear Chat
+            |--------------------------------------------------------------------------
+            */
+            $(document).on('click', '#clearChat', function() {
+
+                localStorage.removeItem('careerCraftChats');
+
+                $('#messages').html(`
+                    <div class="bot-message">
+                        Hello <br>
+                        How can I help you today?
+                    </div>
+                `);
 
             });
         </script>

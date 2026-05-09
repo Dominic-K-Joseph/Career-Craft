@@ -9,7 +9,7 @@ use App\Http\Controllers\Employer\EmployerController;
 use App\Http\Controllers\Seeker\SeekerController;
 use App\Http\Controllers\Seeker\JobController as SeekerJobController;
 use App\Http\Controllers\PaymentController;
-
+use App\Http\Controllers\ChatBotController;
 
 /*
 |--------------------------------------------------------------------------
@@ -75,9 +75,13 @@ Route::prefix('seeker')
 
         Route::get('/profile/get', [SeekerJobController::class, 'getSeekerProfile'])->name('profile.get');
 
-        // 💳 Payment
+        // Payment
         Route::get('/payment', [PaymentController::class, 'index'])->name('payment.page');
         Route::post('/create-session', [PaymentController::class, 'createSession'])->name('payment.session');
+
+        // Chatbot
+        Route::post('/chatbot/send', [ChatBotController::class, 'send'])
+    ->name('chatbot.send');
     });
 
 Route::post('/webhook', [PaymentController::class, 'webhook']);
